@@ -19,6 +19,7 @@
 #include <ompl/base/StateValidityChecker.h>
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/spaces/SE3StateSpace.h>
+#include <ompl/base/spaces/R3SO2StateSpace.h>
 
 #include "omplapp/geometry/detail/FCLMethodWrapper.h"
 #include "omplapp/geometry/GeometrySpecification.h"
@@ -71,6 +72,28 @@ namespace ompl
                     );
 #else
                 tf = fcl::Translation3d(derived->getX(), derived->getY(), 0.) *
+                            fcl::AngleAxisd(derived->getYaw(), zaxis);
+#endif
+            }
+        };
+
+                template<>
+        struct OMPL_FCL_StateType<Motion_4D>
+        {
+            using type = ob::R3SO2StateSpace::StateType;
+
+            void FCLPoseFromState(FCLMethodWrapper::Transform &tf, const ob::State *state) const
+            {
+                static const FCLMethodWrapper::Vector3 zaxis(0., 0., 1.);
+                const auto * derived = static_cast <const type*>(state);
+#if FCL_MAJOR_VERSION==0 && FCL_MINOR_VERSION<6
+                FCLMethodWrapper::Quaternion q;
+                q.fromAxisAngle(zaxis, derived->getYaw());
+                tf = FCLMethodWrapper::Transform(q,
+                        FCLMethodWrapper::Vector3(derived->getX(), derived->getY(), derived->getZ())
+                    );
+#else
+                tf = fcl::Translation3d(derived->getX(), derived->getY(), derived->getZ()) *
                             fcl::AngleAxisd(derived->getYaw(), zaxis);
 #endif
             }

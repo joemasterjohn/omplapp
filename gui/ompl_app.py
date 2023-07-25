@@ -44,7 +44,7 @@ except ImportError:
             # finally try PySide
             from PySide import QtCore, QtGui, QtOpenGL
             from PySide.QtCore import Signal
-        QtWidets = QtGui
+        QtWidgets = QtGui
 
 # The ConfigParser module has been renamed to configparser in Python 3.0
 try:
@@ -127,7 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.robotFile = None
         self.path = None
         self.isGeometric = True
-        self.is3D = True
+        self.stateDimension = 4 # default R3SO2 planning.
         self.mainWidget.problemWidget.robotTypeSelect.currentIndexChanged[int].connect(
             self.setRobotType)
         self.mainWidget.solveWidget.solveButton.clicked.connect(self.solve)
@@ -156,7 +156,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.mainWidget.boundsWidget.bounds_high.setBounds)
 
         #self.commandWindow = CommandWindow(self) # not implemented yet
-        robotType = [t[0] for t in self.robotTypes].index('GSE3RigidBodyPlanning')
+        robotType = [t[0] for t in self.robotTypes].index('GR3SO2RigidBodyPlanning')
         self.mainWidget.problemWidget.robotTypeSelect.setCurrentIndex(robotType)
 
         # connect to OMPL's console output (via OutputHandlers)
@@ -187,8 +187,8 @@ class MainWindow(QtWidgets.QMainWindow):
             start = self.omplSetup.getDefaultStartState()
             # just the first geometric component
             start = self.omplSetup.getGeometricComponentState(start, 0)
-            self.mainWidget.problemWidget.setStartPose(start, self.is3D)
-            self.mainWidget.problemWidget.setGoalPose(start, self.is3D)
+            self.mainWidget.problemWidget.setStartPose(start, self.stateDimension)
+            self.mainWidget.problemWidget.setGoalPose(start, self.stateDimension)
             if self.isGeometric:
                 self.mainWidget.plannerWidget.geometricPlanning.resolution.setValue(
                     self.omplSetup.getSpaceInformation().getStateValidityCheckingResolution())
@@ -213,8 +213,11 @@ class MainWindow(QtWidgets.QMainWindow):
                         robotType = [t[0] for t in self.robotTypes].index('GQuadrotorPlanning')
                     else:
                         robotType = [t[0] for t in self.robotTypes].index('GSE3RigidBodyPlanning')
-                else:
+                elif config.has_option("problem", "start.axis.x"):
                     robotType = [t[0] for t in self.robotTypes].index('GSE3RigidBodyPlanning')
+                else:
+                    robotType = [t[0] for t in self.robotTypes].index('GR3SO2RigidBodyPlanning')
+
                 self.mainWidget.problemWidget.robotTypeSelect.setCurrentIndex(robotType)
             else:
                 if config.has_option("problem", "control"):
@@ -242,7 +245,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.omplSetup.getSpaceInformation().getStateValidityCheckingResolution())
             start = ob.State(self.omplSetup.getGeometricComponentStateSpace())
             goal = ob.State(self.omplSetup.getGeometricComponentStateSpace())
-            if self.is3D:
+            if self.stateDimension == 6:
                 start().setX(config.getfloat("problem", "start.x"))
                 start().setY(config.getfloat("problem", "start.y"))
                 start().setZ(config.getfloat("problem", "start.z"))
@@ -257,16 +260,25 @@ class MainWindow(QtWidgets.QMainWindow):
                                                config.getfloat("problem", "goal.axis.y"),
                                                config.getfloat("problem", "goal.axis.z"),
                                                config.getfloat("problem", "goal.theta"))
-            else:
+            elif self.stateDimension == 3:
                 start().setX(config.getfloat("problem", "start.x"))
                 start().setY(config.getfloat("problem", "start.y"))
                 start().setYaw(config.getfloat("problem", "start.theta"))
                 goal().setX(config.getfloat("problem", "goal.x"))
                 goal().setY(config.getfloat("problem", "goal.y"))
                 goal().setYaw(config.getfloat("problem", "goal.theta"))
-            self.mainWidget.problemWidget.setStartPose(start, self.is3D)
-            self.mainWidget.problemWidget.setGoalPose(goal, self.is3D)
-            if self.is3D:
+            elif self.stateDimension == 4:
+                start().setX(config.getfloat("problem", "start.x"))
+                start().setY(config.getfloat("problem", "start.y"))
+                start().setZ(config.getfloat("problem", "start.z"))
+                start().setYaw(config.getfloat("problem", "start.theta"))
+                goal().setX(config.getfloat("problem", "goal.x"))
+                goal().setY(config.getfloat("problem", "goal.y"))
+                goal().setZ(config.getfloat("problem", "goal.z"))
+                goal().setYaw(config.getfloat("problem", "goal.theta"))
+            self.mainWidget.problemWidget.setStartPose(start, self.stateDimension)
+            self.mainWidget.problemWidget.setGoalPose(goal, self.stateDimension)
+            if self.stateDimension > 3:
                 if config.has_option("problem", "volume.min.x") and \
                    config.has_option("problem", "volume.min.y") and \
                    config.has_option("problem", "volume.min.z") and \
@@ -327,7 +339,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 elif ctype == "Kinematic car":
                     config.set("problem", "control", "kinematic_car")
             b = self.omplSetup.getGeometricComponentStateSpace().getBounds()
-            if self.is3D:
+            if self.stateDimension == 6:
                 config.set("problem", "start.x", str(startPose().getX()))
                 config.set("problem", "start.y", str(startPose().getY()))
                 config.set("problem", "start.z", str(startPose().getZ()))
@@ -364,7 +376,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 config.set("problem", "volume.max.x", str(b.high[0]))
                 config.set("problem", "volume.max.y", str(b.high[1]))
                 config.set("problem", "volume.max.z", str(b.high[2]))
-            else:
+            elif self.stateDimension == 3:
                 config.set("problem", "start.x", str(startPose().getX()))
                 config.set("problem", "start.y", str(startPose().getY()))
                 config.set("problem", "start.theta", str(startPose().getYaw()))
@@ -375,6 +387,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 config.set("problem", "volume.min.y", str(b.low[1]))
                 config.set("problem", "volume.max.x", str(b.high[0]))
                 config.set("problem", "volume.max.y", str(b.high[1]))
+            elif self.stateDimension == 4:
+                config.set("problem", "start.x", str(startPose().getX()))
+                config.set("problem", "start.y", str(startPose().getY()))
+                config.set("problem", "start.z", str(startPose().getZ()))
+                config.set("problem", "start.theta", str(startPose().getYaw()))
+                config.set("problem", "goal.x", str(goalPose().getX()))
+                config.set("problem", "goal.y", str(goalPose().getY()))
+                config.set("problem", "goal.z", str(goalPose().getZ()))
+                config.set("problem", "goal.theta", str(goalPose().getYaw()))
+                config.set("problem", "volume.min.x", str(b.low[0]))
+                config.set("problem", "volume.min.y", str(b.low[1]))
+                config.set("problem", "volume.min.z", str(b.low[2]))
+                config.set("problem", "volume.max.x", str(b.high[0]))
+                config.set("problem", "volume.max.y", str(b.high[1]))
+                config.set("problem", "volume.max.z", str(b.high[2]))
             with open(fname, 'w') as configfile:
                 config.write(configfile)
             OMPL_INFORM("Saved " + fname)
@@ -391,6 +418,11 @@ class MainWindow(QtWidgets.QMainWindow):
         nrm = 1./sqrt(a[3]*a[3] + a[4]*a[4] + a[5]*a[5] + a[6]*a[6])
         (R.x, R.y, R.z, R.w) = (a[3]*nrm, a[4]*nrm, a[5]*nrm, a[6]*nrm)
         return st
+    def _arrayToR3SO2State(self, a):
+        st = ob.State(self.omplSetup.getGeometricComponentStateSpace())
+        st().setXYZ(a[0], a[1], a[2])
+        st().setYaw(a[3])
+        return st
     def openPath(self):
         fname = getOpenFileNameAsAstring(self, "Open Path")
         if fname:
@@ -402,11 +434,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 path.append([float(x) for x in l.split(' ')])
 
             self.mainWidget.glViewer.solutionPath = []
-            # assume that first 3 components map to SE(2) if 3<len<7
-            if len(path[0]) > 2 and len(path[0]) < 7:
+            if len(path[0]) == 3:
                 self.path = [self._arrayToSE2State(s) for s in path]
-            # assume that first 7 components map to SE(3) if len>=7
-            elif len(path[0]) >= 7:
+            elif len(path[0]) == 4:
+                self.path = [self._arrayToR3SO2State(s) for s in path]
+            elif len(path[0]) == 7:
                 self.path = [self._arrayToSE3State(s) for s in path]
             else:
                 # unknown state type
@@ -415,16 +447,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.mainWidget.glViewer.setSolutionPath(self.path)
             # setStart/GoalPose can change bounds, so save and restore them
             bounds = self.mainWidget.glViewer.getBounds()
-            self.mainWidget.problemWidget.setStartPose(self.path[0], self.is3D)
-            self.mainWidget.problemWidget.setGoalPose(self.path[-1], self.is3D)
+            self.mainWidget.problemWidget.setStartPose(self.path[0], self.stateDimension)
+            self.mainWidget.problemWidget.setGoalPose(self.path[-1], self.stateDimension)
             self.mainWidget.glViewer.setBounds(bounds)
 
     def savePath(self):
         if self.path:
             fname = getSaveFileNameAsAstring(self, 'Save Path', 'path.txt')
             if fname:
-                ind = range(7 if self.is3D else 3)
-                pathstr = '\n'.join([' '.join([str(s[i]) for i in ind]) for s in self.path])
+                ind = self.stateDimension
+                # Dimension of SE3 is 6 but paths are expressed with quaternions
+                if ind == 6:
+                    ind += 1
+                pathstr = '\n'.join([' '.join([str(s[i]) for i in range(ind)]) for s in self.path])
                 open(fname, 'w').write(pathstr)
 
     def savePlannerData(self):
@@ -519,9 +554,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.omplSetup = eval('oa.%s()' % self.robotTypes[value][0])
         self.clear(True)
         self.isGeometric = self.robotTypes[value][2] == oa.GEOMETRIC
-        self.is3D = isinstance(self.omplSetup.getGeometricComponentStateSpace(), ob.SE3StateSpace)
+        self.stateDimension = self.omplSetup.getGeometricComponentStateSpace().getDimension()
         self.mainWidget.plannerWidget.setCurrentIndex(0 if self.isGeometric else 1)
-        self.mainWidget.problemWidget.poses.setCurrentIndex(0 if self.is3D else 1)
+        self.mainWidget.problemWidget.poses.setCurrentIndex([6, 3, 4].index(self.stateDimension))
 
     def setTimeLimit(self, value):
         OMPL_DEBUG('Changing time limit from %g to %g' % (self.timeLimit, value))
@@ -534,7 +569,7 @@ class MainWindow(QtWidgets.QMainWindow):
         goalPose = self.omplSetup.getFullStateFromGeometricComponent(
             self.mainWidget.problemWidget.getGoalPose())
         self.omplSetup.setPlanner(self.createPlanner())
-        if self.is3D:
+        if self.stateDimension > 3:
             bounds = ob.RealVectorBounds(3)
             (bounds.low[0], bounds.low[1], bounds.low[2]) = self.mainWidget.glViewer.bounds_low
             (bounds.high[0], bounds.high[1], bounds.high[2]) = self.mainWidget.glViewer.bounds_high
@@ -615,7 +650,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.mainWidget.glViewer.clear(deepClean)
 
     def resetBounds(self):
-        if self.is3D:
+        if self.stateDimension > 3:
             b = ob.RealVectorBounds(3)
             self.omplSetup.getGeometricComponentStateSpace().setBounds(b)
         else:
@@ -904,7 +939,7 @@ class GLViewer(QtOpenGL.QGLWidget):
         return [cos(th), -sin(th), 0, 0,
                 sin(th), cos(th), 0, 0,
                 0, 0, 1, 0,
-                xform.getX(), xform.getY(), 0, 1]
+                xform.getX(), xform.getY(), xform.getZ() if hasattr(xform, 'getZ') else 0, 1]
 
     def drawBounds(self):
         lo = self.bounds_low
@@ -1036,6 +1071,8 @@ class ProblemWidget(QtWidgets.QWidget):
         self.goalPose3D = Pose3DBox('Goal pose')
         self.startPose2D = Pose2DBox('Start pose')
         self.goalPose2D = Pose2DBox('Goal pose')
+        self.startPose4D = Pose4DBox('Start pose')
+        self.goalPose4D = Pose4DBox('Goal pose')
 
         #elevation2Dlabel = QtWidgets.QLabel('Elevation')
         self.elevation2D = QtWidgets.QDoubleSpinBox()
@@ -1056,9 +1093,16 @@ class ProblemWidget(QtWidgets.QWidget):
         #layout.addWidget(self.elevation2D, 2, 1)
         startGoal2D.setLayout(layout)
 
+        startGoal4D = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.startPose4D)
+        layout.addWidget(self.goalPose4D)
+        startGoal4D.setLayout(layout)
+
         self.poses = QtWidgets.QStackedWidget()
         self.poses.addWidget(startGoal3D)
         self.poses.addWidget(startGoal2D)
+        self.poses.addWidget(startGoal4D)
 
         self.objectives = {'length': 'PathLengthOptimizationObjective', \
             'max min clearance': 'MaximizeMinClearanceObjective', \
@@ -1084,28 +1128,36 @@ class ProblemWidget(QtWidgets.QWidget):
         self.goalPose3D.valueChanged.connect(self.goalPoseChange)
         self.startPose2D.valueChanged.connect(self.startPoseChange)
         self.goalPose2D.valueChanged.connect(self.goalPoseChange)
+        self.startPose4D.valueChanged.connect(self.startPoseChange)
+        self.goalPose4D.valueChanged.connect(self.goalPoseChange)
         self.elevation2D.valueChanged.connect(self.elevationChange)
 
-    def setStartPose(self, value, is3D):
-        self.startPose2D.setPose(value, is3D)
-        # if is3D:
-        #     self.elevation2D.setValue(value().getZ())
-        self.startPose3D.setPose(value, self.elevation2D.value(), is3D)
+    def setStartPose(self, value, dimension):
+        self.startPose2D.setPose(value, dimension)
+        self.startPose3D.setPose(value, self.elevation2D.value(), dimension)
+        self.startPose4D.setPose(value, self.elevation2D.value(), dimension)
     def getStartPose(self):
-        return self.startPose3D.getPose() \
-            if self.poses.currentIndex() == 0 else self.startPose2D.getPose()
+        if self.poses.currentIndex() == 0:
+            return self.startPose3D.getPose()
+        elif self.poses.currentIndex() == 1:
+            return self.startPose2D.getPose()
+        elif self.poses.currentIndex() == 2:
+            return self.startPose4D.getPose()
     def getGoalPose(self):
-        return self.goalPose3D.getPose() \
-            if self.poses.currentIndex() == 0 else self.goalPose2D.getPose()
+        if self.poses.currentIndex() == 0:
+            return self.goalPose3D.getPose()
+        elif self.poses.currentIndex() == 1:
+            return self.goalPose2D.getPose()
+        elif self.poses.currentIndex() == 2:
+            return self.goalPose4D.getPose()
     def startPoseChange(self, value):
         if self.poses.currentIndex() == 1:
             value[5] = self.elevation2D.value()
         self.startChanged.emit(value)
-    def setGoalPose(self, value, is3D):
-        self.goalPose2D.setPose(value, is3D)
-        # if is3D:
-        #     self.elevation2D.setValue(value().getZ())
-        self.goalPose3D.setPose(value, self.elevation2D.value(), is3D)
+    def setGoalPose(self, value, dimension):
+        self.goalPose2D.setPose(value, dimension)
+        self.goalPose3D.setPose(value, self.elevation2D.value(), dimension)
+        self.goalPose4D.setPose(value, self.elevation2D.value(), dimension)
     def goalPoseChange(self, value):
         if self.poses.currentIndex() == 1:
             value[5] = self.elevation2D.value()
@@ -1173,9 +1225,9 @@ class Pose3DBox(QtWidgets.QGroupBox):
         self.roty.valueChanged.connect(self.poseChange)
         self.rotz.valueChanged.connect(self.poseChange)
 
-    def setPose(self, value, elevation, is3D):
+    def setPose(self, value, elevation, dimension):
         state = value()
-        if is3D:
+        if dimension == 6:
             self.posx.setValue(state.getX())
             self.posy.setValue(state.getY())
             self.posz.setValue(state.getZ())
@@ -1184,10 +1236,17 @@ class Pose3DBox(QtWidgets.QGroupBox):
             self.rotx.setValue(rad2deg * atan2(2.*(q.w*q.x+q.y*q.z), 1.-2.*(q.x*q.x+q.y*q.y)))
             self.roty.setValue(rad2deg * asin(max(min(2.*(q.w*q.y-q.z*q.x), 1.), -1.)))
             self.rotz.setValue(rad2deg * atan2(2.*(q.w*q.z+q.x*q.y), 1.-2.*(q.y*q.y+q.z*q.z)))
-        else:
+        elif dimension == 3:
             self.posx.setValue(state.getX())
             self.posy.setValue(state.getY())
             self.posz.setValue(elevation)
+            self.rotx.setValue(0)
+            self.roty.setValue(0)
+            self.rotz.setValue(180 * state.getYaw() / pi)
+        elif dimension == 4:
+            self.posx.setValue(state.getX())
+            self.posy.setValue(state.getY())
+            self.posz.setValue(state.getZ())
             self.rotx.setValue(0)
             self.roty.setValue(0)
             self.rotz.setValue(180 * state.getYaw() / pi)
@@ -1243,14 +1302,18 @@ class Pose2DBox(QtWidgets.QGroupBox):
         self.posy.valueChanged.connect(self.poseChange)
         self.rot.valueChanged.connect(self.poseChange)
 
-    def setPose(self, value, is3D):
+    def setPose(self, value, dimension):
         state = value()
-        if is3D:
+        if dimension == 6:
             self.posx.setValue(state.getX())
             self.posy.setValue(state.getY())
             q = state.rotation()
             self.rot.setValue(atan2(2.*(q.w*q.z+q.x*q.y), 1.-2.*(q.y*q.y+q.z*q.z)) * 180 / pi)
-        else:
+        elif dimension == 3:
+            self.posx.setValue(state.getX())
+            self.posy.setValue(state.getY())
+            self.rot.setValue(state.getYaw() * 180 / pi)
+        elif dimension == 4:
             self.posx.setValue(state.getX())
             self.posy.setValue(state.getY())
             self.rot.setValue(state.getYaw() * 180 / pi)
@@ -1264,6 +1327,76 @@ class Pose2DBox(QtWidgets.QGroupBox):
 
     def poseChange(self, _):
         self.valueChanged.emit([0, 0, self.rot.value(), self.posx.value(), self.posy.value(), 0])
+
+class Pose4DBox(QtWidgets.QGroupBox):
+    valueChanged = Signal(list)
+
+    def __init__(self, title):
+        super(Pose4DBox, self).__init__(title)
+        xlabel = QtWidgets.QLabel('X')
+        ylabel = QtWidgets.QLabel('Y')
+        zlabel = QtWidgets.QLabel('Z')
+        rotlabel = QtWidgets.QLabel('Rotation')
+
+        self.posx = QtWidgets.QDoubleSpinBox()
+        self.posx.setRange(-1000, 1000)
+        self.posx.setSingleStep(1)
+        self.posy = QtWidgets.QDoubleSpinBox()
+        self.posy.setRange(-1000, 1000)
+        self.posy.setSingleStep(1)
+        self.posz = QtWidgets.QDoubleSpinBox()
+        self.posz.setRange(-1000, 1000)
+        self.posz.setSingleStep(1)
+        self.rot = QtWidgets.QDoubleSpinBox()
+        self.rot.setRange(-180, 179) # SO2StateSpace is parameterized from [-pi,pi)
+        self.rot.setSingleStep(1)
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(xlabel, 0, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(ylabel, 1, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(zlabel, 2, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(rotlabel, 3, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(self.posx, 0, 1)
+        layout.addWidget(self.posy, 1, 1)
+        layout.addWidget(self.posz, 2, 1)
+        layout.addWidget(self.rot, 3, 1)
+        self.setLayout(layout)
+
+        self.posx.valueChanged.connect(self.poseChange)
+        self.posy.valueChanged.connect(self.poseChange)
+        self.posz.valueChanged.connect(self.poseChange)
+        self.rot.valueChanged.connect(self.poseChange)
+
+    def setPose(self, value, elevation, dimension):
+        state = value()
+        if dimension == 6:
+            self.posx.setValue(state.getX())
+            self.posy.setValue(state.getY())
+            self.posz.setValue(state.getZ())
+            q = state.rotation()
+            self.rot.setValue(atan2(2.*(q.w*q.z+q.x*q.y), 1.-2.*(q.y*q.y+q.z*q.z)) * 180 / pi)
+        elif dimension == 3:
+            self.posx.setValue(state.getX())
+            self.posy.setValue(state.getY())
+            self.posz.setValue(elevation)
+            self.rot.setValue(state.getYaw() * 180 / pi)
+        elif dimension == 4:
+            self.posx.setValue(state.getX())
+            self.posy.setValue(state.getY())
+            self.posz.setValue(state.getZ())
+            self.rot.setValue(state.getYaw() * 180 / pi)
+
+    def getPose(self):
+        state = ob.State(ob.R3SO2StateSpace())
+        state().setX(self.posx.value())
+        state().setY(self.posy.value())
+        state().setZ(self.posz.value())
+        state().setYaw(self.rot.value() * pi / 180)
+        return state
+
+    def poseChange(self, _):
+        self.valueChanged.emit([0, 0, self.rot.value(), self.posx.value(), self.posy.value(), self.posz.value()])
+
 
 class PlannerHelperWidget(QtWidgets.QGroupBox):
     def __init__(self, name, planners):

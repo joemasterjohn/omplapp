@@ -11,6 +11,7 @@
 /* Author: Ioan Sucan */
 
 #include "omplapp/apps/detail/appUtil.h"
+#include <ompl/base/spaces/R3SO2StateSpace.h>
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/spaces/SE3StateSpace.h>
 #include <ompl/control/planners/syclop/GridDecomposition.h>
@@ -24,7 +25,18 @@ void ompl::app::InferProblemDefinitionBounds(const base::ProblemDefinitionPtr &p
                                              unsigned int robotCount, const base::StateSpacePtr &space, MotionModel mtype)
 {
     // update the bounds based on start states, if needed
-    base::RealVectorBounds bounds = mtype == Motion_2D ? space->as<base::SE2StateSpace>()->getBounds() : space->as<base::SE3StateSpace>()->getBounds();
+    base::RealVectorBounds bounds(0);
+    switch (mtype) {
+        case Motion_2D:
+          bounds = space->as<base::SE2StateSpace>()->getBounds();
+          break;
+        case Motion_3D:
+          bounds = space->as<base::SE3StateSpace>()->getBounds();
+          break;
+        case Motion_4D:
+          bounds = space->as<base::R3SO2StateSpace>()->getBounds();
+          break;
+    }
 
     std::vector<const base::State*> states;
     pdef->getInputStates(states);
@@ -40,9 +52,23 @@ void ompl::app::InferProblemDefinitionBounds(const base::ProblemDefinitionPtr &p
         for (unsigned int r = 0 ; r < robotCount ; ++r)
         {
             const base::State *s = se(state, r);
-            double x = mtype == Motion_2D ? s->as<base::SE2StateSpace::StateType>()->getX() : s->as<base::SE3StateSpace::StateType>()->getX();
-            double y = mtype == Motion_2D ? s->as<base::SE2StateSpace::StateType>()->getY() : s->as<base::SE3StateSpace::StateType>()->getY();
-            double z = mtype == Motion_2D ? 0.0 : s->as<base::SE3StateSpace::StateType>()->getZ();
+            double x = 0, y = 0, z = 0;
+            switch(mtype) {
+                case Motion_2D:
+                  x = s->as<base::SE2StateSpace::StateType>()->getX();
+                  y = s->as<base::SE2StateSpace::StateType>()->getY();
+                  break;
+                case Motion_3D:
+                  x = s->as<base::SE3StateSpace::StateType>()->getX();
+                  y = s->as<base::SE3StateSpace::StateType>()->getY();
+                  z = s->as<base::SE3StateSpace::StateType>()->getZ();
+                  break;
+                case Motion_4D:
+                  x = s->as<base::R3SO2StateSpace::StateType>()->getX();
+                  y = s->as<base::R3SO2StateSpace::StateType>()->getY();
+                  z = s->as<base::R3SO2StateSpace::StateType>()->getZ();
+                  break;
+            }
             if (minX > x) minX = x;
             if (maxX < x) maxX = x;
             if (minY > y) minY = y;
@@ -61,30 +87,49 @@ void ompl::app::InferProblemDefinitionBounds(const base::ProblemDefinitionPtr &p
     if (bounds.high[0] < maxX + dx) bounds.high[0] = maxX + dx;
     if (bounds.high[1] < maxY + dy) bounds.high[1] = maxY + dy;
 
-    if (mtype == Motion_3D)
+    if (mtype == Motion_2D)
     {
+        space->as<base::SE2StateSpace>()->setBounds(bounds);
+
+    } else {
+
         if (bounds.high[2] < maxZ + dz) bounds.high[2] = maxZ + dz;
         if (bounds.low[2] > minZ - dz) bounds.low[2] = minZ - dz;
 
-        space->as<base::SE3StateSpace>()->setBounds(bounds);
+        if (mtype == Motion_3D) {
+            space->as<base::SE3StateSpace>()->setBounds(bounds);
+        } else if (mtype == Motion_4D) {
+            space->as<base::R3SO2StateSpace>()->setBounds(bounds);
+        }
     }
-    else
-        space->as<base::SE2StateSpace>()->setBounds(bounds);
 }
 
 void ompl::app::InferEnvironmentBounds(const base::StateSpacePtr &space, const RigidBodyGeometry &rbg)
 {
     MotionModel mtype = rbg.getMotionModel();
 
-    base::RealVectorBounds bounds = mtype == Motion_2D ? space->as<base::SE2StateSpace>()->getBounds() : space->as<base::SE3StateSpace>()->getBounds();
+    base::RealVectorBounds bounds(0);
+    switch(mtype) {
+      case Motion_2D:
+        bounds = space->as<base::SE2StateSpace>()->getBounds();
+        break;
+      case Motion_3D:
+        bounds = space->as<base::SE3StateSpace>()->getBounds();
+        break;
+      case Motion_4D:
+        bounds = space->as<base::R3SO2StateSpace>()->getBounds();
+        break;
+    }
 
     // if bounds are not valid
     if (bounds.getVolume() < std::numeric_limits<double>::epsilon())
     {
         if (mtype == Motion_2D)
             space->as<base::SE2StateSpace>()->setBounds(rbg.inferEnvironmentBounds());
-        else
+        else if (mtype == Motion_3D)
             space->as<base::SE3StateSpace>()->setBounds(rbg.inferEnvironmentBounds());
+        else if (mtype == Motion_4D)
+            space->as<base::R3SO2StateSpace>()->setBounds(rbg.inferEnvironmentBounds());
     }
 }
 
@@ -167,6 +212,42 @@ namespace ompl
                 GeometricStateExtractor    se_;
             };
 
+            class GeometricStateProjector4D : public base::ProjectionEvaluator
+            {
+            public:
+
+                GeometricStateProjector4D(const base::StateSpacePtr &space, const base::StateSpacePtr &gspace, GeometricStateExtractor se) : base::ProjectionEvaluator(space), gm_(gspace->as<base::R3SO2StateSpace>()), se_(std::move(se))
+                {
+                }
+
+                unsigned int getDimension() const override
+                {
+                    return 3;
+                }
+
+                void project(const base::State *state, Eigen::Ref<Eigen::VectorXd> projection) const override
+                {
+                    const base::State *gs = se_(state, 0);
+                    projection(0) = gs->as<base::R3SO2StateSpace::StateType>()->getX();
+                    projection(1) = gs->as<base::R3SO2StateSpace::StateType>()->getY();
+                    projection(2) = gs->as<base::R3SO2StateSpace::StateType>()->getZ();
+                }
+
+                void defaultCellSizes() override
+                {
+                    bounds_ = gm_->getBounds();
+                    const std::vector<double> b = bounds_.getDifference();
+                    cellSizes_.resize(3);
+                    cellSizes_[0] = b[0] / 20.0;
+                    cellSizes_[1] = b[1] / 20.0;
+                    cellSizes_[2] = b[2] / 20.0;
+                }
+
+            protected:
+
+                const base::R3SO2StateSpace *gm_;
+                GeometricStateExtractor    se_;
+            };
 
             // a decomposition is only needed for SyclopRRT and SyclopEST
             class Decomposition2D : public ompl::control::GridDecomposition
@@ -239,7 +320,10 @@ ompl::base::ProjectionEvaluatorPtr ompl::app::allocGeometricStateProjector(const
 {
     if (mtype == Motion_2D)
         return std::make_shared<detail::GeometricStateProjector2D>(space, gspace, se);
-    return std::make_shared<detail::GeometricStateProjector3D>(space, gspace, se);
+    else if (mtype == Motion_3D)
+        return std::make_shared<detail::GeometricStateProjector3D>(space, gspace, se);
+    else
+        return std::make_shared<detail::GeometricStateProjector4D>(space, gspace, se);
 }
 
 ompl::control::DecompositionPtr ompl::app::allocDecomposition(const base::StateSpacePtr &space, MotionModel mtype,
@@ -250,6 +334,7 @@ ompl::control::DecompositionPtr ompl::app::allocDecomposition(const base::StateS
 
     if (mtype == Motion_2D)
         return std::make_shared<detail::Decomposition2D>(gspace->as<ompl::base::SE2StateSpace>()->getBounds(), space);
+    // SE3 and 4D state space both use 3D decomposition.
     return std::make_shared<detail::Decomposition3D>(gspace->as<ompl::base::SE3StateSpace>()->getBounds(), space);
 }
 

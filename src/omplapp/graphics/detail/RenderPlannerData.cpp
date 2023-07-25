@@ -13,6 +13,7 @@
 #include "omplapp/graphics/detail/RenderPlannerData.h"
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/spaces/SE3StateSpace.h>
+#include <ompl/base/spaces/R3SO2StateSpace.h>
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -35,6 +36,11 @@ namespace ompl
             glVertex3d(state.getX(), state.getY(), state.getZ());
         }
 
+        static void renderState(const base::R3SO2StateSpace::StateType &state)
+        {
+            glVertex3d(state.getX(), state.getY(), state.getZ());
+        }
+
         static void renderEdge(const base::SE2StateSpace::StateType &state1,
             const base::SE2StateSpace::StateType &state2)
         {
@@ -44,6 +50,13 @@ namespace ompl
 
         static void renderEdge(const base::SE3StateSpace::StateType &state1,
             const base::SE3StateSpace::StateType &state2)
+        {
+            renderState(state1);
+            renderState(state2);
+        }
+
+        static void renderEdge(const base::R3SO2StateSpace::StateType &state1,
+            const base::R3SO2StateSpace::StateType &state2)
         {
             renderState(state1);
             renderState(state2);
@@ -99,7 +112,7 @@ namespace ompl
                         renderState (*se2st);
                     }
                 }
-            else
+            else if (m == Motion_3D)
                 for (std::size_t i = 0; i < pd.numVertices(); ++i)
                 {
                     const base::PlannerDataVertex& vtx = pd.getVertex(i);
@@ -109,6 +122,18 @@ namespace ompl
                         const base::State *st = gse(vtx.getState(), r);
                         const auto* se3st = static_cast<const base::SE3StateSpace::StateType*>(st);
                         renderState (*se3st);
+                    }
+                }
+            else
+                for (std::size_t i = 0; i < pd.numVertices(); ++i)
+                {
+                    const base::PlannerDataVertex& vtx = pd.getVertex(i);
+                    setStateColor(vtx.getTag());
+                    for (unsigned int r = 0 ; r < count ; ++r)
+                    {
+                        const base::State *st = gse(vtx.getState(), r);
+                        const auto* r3so2st = static_cast<const base::R3SO2StateSpace::StateType*>(st);
+                        renderState (*r3so2st);
                     }
                 }
             glEnd();
@@ -140,7 +165,7 @@ namespace ompl
                         renderEdge(*vi, *vj);
                     }
                 }
-            else
+            else if (m == Motion_3D)
                 for (std::size_t i = 0; i < pd.numVertices(); ++i)
                 {
                     const base::PlannerDataVertex& vtx = pd.getVertex(i);
@@ -152,6 +177,21 @@ namespace ompl
                     {
                         const auto* vj =
                             static_cast<const base::SE3StateSpace::StateType*>(gse(pd.getVertex(edgeList[j]).getState(), 0));
+                        renderEdge(*vi, *vj);
+                    }
+                }
+            else
+                for (std::size_t i = 0; i < pd.numVertices(); ++i)
+                {
+                    const base::PlannerDataVertex& vtx = pd.getVertex(i);
+                    const auto* vi =
+                        static_cast<const base::R3SO2StateSpace::StateType*>(gse(vtx.getState(), 0));
+                    setStateColor(vtx.getTag());
+                    numEdges = pd.getEdges(i, edgeList);
+                    for (unsigned int j = 0; j < numEdges; ++j)
+                    {
+                        const auto* vj =
+                            static_cast<const base::R3SO2StateSpace::StateType*>(gse(pd.getVertex(edgeList[j]).getState(), 0));
                         renderEdge(*vi, *vj);
                     }
                 }

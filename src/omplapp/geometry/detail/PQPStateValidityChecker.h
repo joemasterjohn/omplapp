@@ -16,6 +16,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/spaces/SE3StateSpace.h>
+#include <ompl/base/spaces/R3SO2StateSpace.h>
 
 #include "omplapp/geometry/GeometrySpecification.h"
 #include "omplapp/geometry/detail/assimpUtil.h"
@@ -86,6 +87,34 @@ namespace ompl
                 robTrans[0] = s.getX();
                 robTrans[1] = s.getY();
                 robTrans[2] = 0.0;
+
+                const double ca = cos(s.getYaw());
+                const double sa = sin(s.getYaw());
+
+                robRot[0][0] = ca;
+                robRot[0][1] = -sa;
+                robRot[0][2] = 0.0;
+
+                robRot[1][0] = sa;
+                robRot[1][1] = ca;
+                robRot[1][2] = 0.0;
+
+                robRot[2][0] = 0.0;
+                robRot[2][1] = 0.0;
+                robRot[2][2] = 1.0;
+            }
+        };
+
+        template<>
+        struct OMPL_StateType<Motion_4D>
+        {
+            using type = base::R3SO2StateSpace::StateType;
+
+            void PQP_pose_from_state(PQP_REAL robTrans[3], PQP_REAL robRot[3][3], const type &s) const
+            {
+                robTrans[0] = s.getX();
+                robTrans[1] = s.getY();
+                robTrans[2] = s.getZ();
 
                 const double ca = cos(s.getYaw());
                 const double sa = sin(s.getYaw());

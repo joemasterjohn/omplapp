@@ -25,7 +25,7 @@ namespace ompl
     {
 
         /// Specify whether bodies are moving in 2D or bodies moving in 3D
-        enum MotionModel { Motion_2D, Motion_3D };
+        enum MotionModel { Motion_2D, Motion_3D, Motion_4D};
 
         using GeometricStateExtractor = std::function<const base::State *(const base::State *, unsigned int)>;
 

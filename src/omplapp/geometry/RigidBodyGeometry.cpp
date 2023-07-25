@@ -207,15 +207,19 @@ const ompl::base::StateValidityCheckerPtr& ompl::app::RigidBodyGeometry::allocSt
         case PQP:
             if (mtype_ == Motion_2D)
                 validitySvc_ = std::make_shared<PQPStateValidityChecker<Motion_2D>>(si, geom, se, selfCollision);
-            else
+            else if (mtype_ == Motion_3D)
                 validitySvc_ = std::make_shared<PQPStateValidityChecker<Motion_3D>>(si, geom, se, selfCollision);
+            else
+                validitySvc_ = std::make_shared<PQPStateValidityChecker<Motion_4D>>(si, geom, se, selfCollision);
             break;
 #endif
         case FCL:
             if (mtype_ == Motion_2D)
                 validitySvc_ = std::make_shared<FCLStateValidityChecker<Motion_2D>>(si, geom, se, selfCollision);
-            else
+            else if (mtype_ == Motion_3D)
                 validitySvc_ = std::make_shared<FCLStateValidityChecker<Motion_3D>>(si, geom, se, selfCollision);
+            else
+                validitySvc_ = std::make_shared<FCLStateValidityChecker<Motion_4D>>(si, geom, se, selfCollision);
             break;
 
         default:

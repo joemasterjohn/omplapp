@@ -9,14 +9,22 @@ if (OMPL_BUILD_DEMOS)
     add_omplapp_demo(demo_SE3RigidBodyPlanningBenchmark SE3RigidBodyPlanning/SE3RigidBodyPlanningBenchmark.cpp)
     add_omplapp_demo(demo_SE3RigidBodyPlanning SE3RigidBodyPlanning/SE3RigidBodyPlanning.cpp)
     add_omplapp_demo(demo_SE3RigidBodyPlanningWithOptimization SE3RigidBodyPlanning/SE3RigidBodyPlanningWithOptimization.cpp)
-    add_omplapp_demo(demo_SE2RigidBodyPlanning SE2RigidBodyPlanning/SE2RigidBodyPlanning.cpp)
-    add_omplapp_demo(demo_KinematicCarPlanning SE2RigidBodyPlanning/KinematicCarPlanning.cpp)
-    add_omplapp_demo(demo_DynamicCarPlanning SE2RigidBodyPlanning/DynamicCarPlanning.cpp)
+    add_omplapp_demo(demo_SE3MultiRigidBodyPlanning SE3RigidBodyPlanning/SE3MultiRigidBodyPlanning.cpp)
+    add_omplapp_demo(demo_SE3CollisionCheckers SE3RigidBodyPlanning/CollisionCheckers.cpp)
     add_omplapp_demo(demo_BlimpPlanning SE3RigidBodyPlanning/BlimpPlanning.cpp)
     add_omplapp_demo(demo_QuadrotorPlanning SE3RigidBodyPlanning/QuadrotorPlanning.cpp)
+
+    add_omplapp_demo(demo_R3SO2RigidBodyPlanningBenchmark R3SO2RigidBodyPlanning/R3SO2RigidBodyPlanningBenchmark.cpp)
+    add_omplapp_demo(demo_R3SO2RigidBodyPlanning R3SO2RigidBodyPlanning/R3SO2RigidBodyPlanning.cpp)
+    add_omplapp_demo(demo_R3SO2RigidBodyPlanningWithOptimization R3SO2RigidBodyPlanning/R3SO2RigidBodyPlanningWithOptimization.cpp)
+    add_omplapp_demo(demo_R3SO2MultiRigidBodyPlanning R3SO2RigidBodyPlanning/R3SO2MultiRigidBodyPlanning.cpp)
+    add_omplapp_demo(demo_R3SO2CollisionCheckers R3SO2RigidBodyPlanning/CollisionCheckers.cpp)
+ 
+    add_omplapp_demo(demo_SE2RigidBodyPlanning SE2RigidBodyPlanning/SE2RigidBodyPlanning.cpp)
     add_omplapp_demo(demo_SE2MultiRigidBodyPlanning SE2RigidBodyPlanning/SE2MultiRigidBodyPlanning.cpp)
-    add_omplapp_demo(demo_SE3MultiRigidBodyPlanning SE3RigidBodyPlanning/SE3MultiRigidBodyPlanning.cpp)
-    add_omplapp_demo(demo_CollisionCheckers SE3RigidBodyPlanning/CollisionCheckers.cpp)
+    add_omplapp_demo(demo_KinematicCarPlanning SE2RigidBodyPlanning/KinematicCarPlanning.cpp)
+    add_omplapp_demo(demo_DynamicCarPlanning SE2RigidBodyPlanning/DynamicCarPlanning.cpp)
+
     add_omplapp_demo(demo_AnytimePathShortening AnytimePathShorteningDemo.cpp)
 
     # create executable for planning with OPENDE

@@ -153,6 +153,20 @@ namespace ompl
                         fclWrapper_ = fcl_3d_state_checker->getFCLWrapper ();
                         break;
 
+                    case app::Motion_4D:
+                        const app::FCLStateValidityChecker<app::Motion_4D> *fcl_4d_state_checker;
+                        fcl_4d_state_checker = dynamic_cast <const app::FCLStateValidityChecker<app::Motion_4D>* > (si_->getStateValidityChecker ().get ());
+
+                        if (fcl_4d_state_checker == nullptr)
+                        {
+                            // Be extra verbose in this fatal error
+                            OMPL_ERROR("Unable to cast state validity checker to FCLStateValidityChecker.");
+                            assert (fcl_4d_state_checker != 0);
+                        }
+
+                        fclWrapper_ = fcl_4d_state_checker->getFCLWrapper ();
+                        break;
+
                     default:
                         OMPL_WARN("Unknown motion model specified: %u", mm);
                         break;
